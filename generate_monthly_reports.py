@@ -198,8 +198,10 @@ def main():
 
     # User Inputs
     print("--- Monthly Report Generator ---")
-    folder_id = input("Enter Google Drive Folder ID: ").strip()
-    target_month = input("Enter Target Month (e.g., 2026年2月): ").strip()
+    # folder_id = input("Enter Google Drive Folder ID: ").strip()
+    # target_month = input("Enter Target Month (e.g., 2026年2月): ").strip()
+    folder_id = "13UGFVMSlukZofnjxTe1HWXBdwCsFRfer"
+    target_month = "2026年1月"
     
     if not folder_id or not target_month:
         print("Folder ID and Target Month are required.")
@@ -294,7 +296,8 @@ def main():
             
             origin = repo.remote(name='origin')
             print("  -> Pushing to origin...")
-            origin.push()
+            # origin.push()
+            repo.git.push('--set-upstream', 'origin', repo.active_branch.name)
             print("  -> Push completed.")
         else:
             print("  -> No changes to commit.")
