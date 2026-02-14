@@ -175,17 +175,27 @@ def generate_report(content, target_month):
         
     genai.configure(api_key=api_key)
     
-    target_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+    target_models = ['gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash']
 
     response_text = None
     
     for model_name in target_models:
+        print(f"Generating with {model_name}...")
         try:
-            print(f"Generating with {model_name}...")
             model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
-            response = model.generate_content(user_instruction)
-            response_text = response.text
-            break
+            # Retry loop for rate limits
+            for attempt in range(3):
+                try:
+                    response = model.generate_content(user_instruction)
+                    response_text = response.text
+                    return response_text
+                except Exception as e:
+                    if "429" in str(e) or "Quota exceeded" in str(e):
+                        print(f"  -> Rate limit exceeded for {model_name} (Attempt {attempt+1}). Waiting 60 seconds...")
+                        time.sleep(60)
+                        continue
+                    else:
+                        raise e
         except Exception as e:
             print(f"Error with {model_name}: {e}")
             continue
