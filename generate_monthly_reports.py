@@ -175,7 +175,7 @@ def generate_report(content, target_month):
         
     genai.configure(api_key=api_key)
     
-    target_models = ['gemini-3.0-pro', 'gemini-1.5-pro']
+    target_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
 
     response_text = None
     
