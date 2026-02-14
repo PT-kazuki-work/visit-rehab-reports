@@ -1,5 +1,8 @@
 import os
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 import time
 import unicodedata
 import datetime
