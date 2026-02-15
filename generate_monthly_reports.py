@@ -211,7 +211,7 @@ def main():
     # folder_id = input("Enter Google Drive Folder ID: ").strip()
     # target_month = input("Enter Target Month (e.g., 2026年2月): ").strip()
     folder_id = "13UGFVMSlukZofnjxTe1HWXBdwCsFRfer"
-    target_month = "2026年1月"
+    target_month = "2026-01"
     
     if not folder_id or not target_month:
         print("Folder ID and Target Month are required.")
