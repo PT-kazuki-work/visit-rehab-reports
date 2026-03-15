@@ -175,30 +175,44 @@ def generate_report(content, target_month):
         
     genai.configure(api_key=api_key)
     
-    target_models = ['gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash']
-
+    # User preference: Prioritize 3.1 Pro, fallback to 3.0 Pro after 10 mins
+    target_models = ['gemini-3.1-pro', 'gemini-3.0-pro']
+    
+    start_time = time.time()
     response_text = None
     
     for model_name in target_models:
         print(f"Generating with {model_name}...")
-        try:
-            model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
-            # Retry loop for rate limits
-            for attempt in range(3):
-                try:
-                    response = model.generate_content(user_instruction)
-                    response_text = response.text
-                    return response_text
-                except Exception as e:
-                    if "429" in str(e) or "Quota exceeded" in str(e):
-                        print(f"  -> Rate limit exceeded for {model_name} (Attempt {attempt+1}). Waiting 60 seconds...")
-                        time.sleep(60)
-                        continue
-                    else:
-                        raise e
-        except Exception as e:
-            print(f"Error with {model_name}: {e}")
-            continue
+        model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+        
+        while True:
+            try:
+                # Calculate elapsed time for current file processing
+                elapsed_time = time.time() - start_time
+                
+                # If we are on the first model (3.1 Pro) and exceeded 10 minutes (600 seconds)
+                if model_name == target_models[0] and elapsed_time > 600:
+                    print(f"  -> Timeout (10 mins) exceeded for {model_name}. Switching to fallback model.")
+                    break # Break inner while loop to move to next model in for loop
+                
+                response = model.generate_content(user_instruction)
+                response_text = response.text
+                return response_text
+                
+            except Exception as e:
+                if "429" in str(e) or "Quota exceeded" in str(e) or "Resource has been exhausted" in str(e):
+                    # Rate limit hit
+                    wait_time = 60
+                    print(f"  -> Rate limit exceeded for {model_name}. Waiting {wait_time} seconds... (Elapsed: {int(time.time() - start_time)}s)")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Other errors (e.g. model not found, internal error) -> Skip to next model immediately
+                    print(f"Error with {model_name}: {e}")
+                    break 
+        
+        # If we successfully got a response, return it (handled inside try block).
+        # If we broke out of while loop (timeout or non-retriable error), we continue to next model.
             
     return response_text
 
@@ -249,8 +263,24 @@ def main():
     # Sort files
     files_with_sort_info.sort(key=lambda x: x['sort_order'])
 
-    # Counter for output file prefix
-    report_count = 0
+    # Scan existing files
+    existing_logic_names = set()
+    current_max_prefix = 0
+    
+    if os.path.exists(output_dir):
+        for filename in os.listdir(output_dir):
+            if filename.endswith(".md"):
+                # Expecting format: NN_LogicName.md
+                match = re.match(r"^(\d+)_(.+)\.md$", filename)
+                if match:
+                    prefix_num = int(match.group(1))
+                    logic_name_extracted = match.group(2)
+                    existing_logic_names.add(logic_name_extracted)
+                    if prefix_num > current_max_prefix:
+                        current_max_prefix = prefix_num
+
+    # Determine reporting counter start
+    report_count = current_max_prefix
     
     for item in files_with_sort_info:
         file = item['file']
@@ -260,6 +290,15 @@ def main():
         if sort_order == 999:
             print(f"Skipping file with unknown frame name: {file['name']}")
             continue
+
+        # Check if logic name already processed
+        if logic_name in existing_logic_names:
+             print(f"Skipping already processed frame: {logic_name}")
+             continue
+             
+        # Check if file already exists to skip re-generation (filename check backup)
+        # Construct expected filename - wait, we don't know the exact filename if skipped.
+        # But we checked logic_name, so we are good.
 
         print(f"Processing: {logic_name} (ID: {file['id']})")
         
@@ -280,11 +319,11 @@ def main():
             print("  -> No records found (Gemini returned '記録なし'). Skipping.")
             continue
             
-        # Determine Filename
-        report_count += 1
-        prefix = f"{report_count:02d}"
-        filename = f"{prefix}_{logic_name}.md"
-        filepath = os.path.join(output_dir, filename)
+        # Determine Filename (Logic moved up, reuse variables)
+        # report_count += 1
+        # prefix = f"{report_count:02d}"
+        # filename = f"{prefix}_{logic_name}.md"
+        # filepath = os.path.join(output_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(report)
