@@ -176,7 +176,7 @@ def generate_report(content, target_month):
     genai.configure(api_key=api_key)
     
     # User preference: Prioritize 3.1 Pro, fallback to 3.0 Pro after 10 mins
-    target_models = ['gemini-3.1-pro', 'gemini-3.0-pro']
+    target_models = ['gemini-3.1-pro-preview', 'gemini-3-pro-preview']
     
     start_time = time.time()
     response_text = None
